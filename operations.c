@@ -1,69 +1,160 @@
 #include "operations.h"
 #include <stdlib.h> 
+#include <math.h>
+#include <stdio.h>
+#include <stdint.h>
+
+float* DCT(ComponentPix* p1, ComponentPix* p2, ComponentPix* p3, ComponentPix* p4);
+void* inverseDCT(Word* in); 
+
+void convertFloat(Pnm_ppm* img){
+	RgbPix (*arr) = img->pixels;
+	
+	for (int i = 0; i < img->height * img->width; i++){
+		// this accessing might not work!!!!
+		(arr + i)->r /= img->denominator;
+		(arr + i)->g /= img->denominator;
+		(arr + i)->b /= img->denominator;
+	}
+}
+
 
 // takes a Pnm_ppm image, rgb values must already be floating point
 void RGBToComponent(Pnm_ppm* img){
 	float y, pb, pr;
-	RgbPix* pixel;
-	ComponentPix* cPixs = malloc(sizeof(ComponentPix) * img->height * img->width);
+	RgbPix* pixel = img->pixels;
+	ComponentPix* cPixs = (ComponentPix *)malloc(sizeof(ComponentPix)*img->height*img->width);
 
 	for(int i=0; i < img->height*img->width; i++){
-		pixel  = &((RgbPix*)img->pixels)[i];
-
 		y = 0.299 * pixel->r + 0.587 * pixel->g + 0.114 * pixel->b;
 		pb = -0.168736 * pixel->r  - 0.331264 * pixel->g + 0.5 * pixel->b;	
 		pr = 0.5 * pixel->r - 0.418688 * pixel->g - 0.081312 * pixel->b;
+		
 		ComponentPix cPix = {y, pb, pr};
-		cPixs[i] = cPix;
+		*(cPixs + i) = cPix;
+		pixel += 1;
 	}
+	img->pixels = (void *)cPixs;
 }
 
 // conver from component to rgb
 // img must be floating point
 void ComponentToRGB(Pnm_ppm* img){
 	float r, g, b;	
-	ComponentPix* pixel;
-	RgbPix* rgbPixs = malloc(sizeof(RgbPix) * img->height * img->width); 
-
-	for(int i=0; i < img->height*img->width; i++){
-		pixel = &((ComponentPix*)img->pixels)[i];
+	ComponentPix* pixel = img->pixels;
+	RgbPix* rgbPixs = (RgbPix *)(malloc(sizeof(RgbPix) * img->height * img->width)); 
+	
+	for(int i=0; i < img->height * img->width; i++) {
 		r = pixel->y + 1.402 * pixel->pr;
 		g = pixel->y - 0.344136 * pixel->pb - 0.714136 * pixel->pr;
-		b = pixel->y - 1.772 * pixel->pr;
+		b = pixel->y + 1.772 * pixel->pb;
 		
 		RgbPix rPix = {r, g, b};
-		rgbPixs[i] = rPix;
+		*(rgbPixs + i) = rPix;
+		pixel += 1;
 	}
+	img->pixels = (void *)rgbPixs;
 }
 
-Coeff* DCT(ComponentPix* p1, ComponentPix* p2, ComponentPix* p3, ComponentPix* p4){
+// img->pixels must be an array of component pixels
+void applyDCT(Pnm_ppm* img){
+	ComponentPix* cPix = img->pixels;
+	int size = (img->width * img->height) / 4;
+	Word* words = malloc(sizeof(Word) *size);
+	int i = 0;
+	for (int r = 0; r < img->height; r += 2){
+		for (int c = 0; c < img->width; c += 2){
+			
+			// p1	p2
+			// p3	p4
+			ComponentPix* p1 = (cPix + (r * img->width + c));
+			ComponentPix* p2 = (cPix + (r * img->width + c + 1));
+			ComponentPix* p3 = (cPix + ((r+1) * img->width + c));
+			ComponentPix* p4 = (cPix + ((r+1) * img->width + c + 1));
+			float* abcd  = DCT( p1, p2, p3, p4);
 
-	Coeff* out = malloc(sizeof(Coeff));
-	float temp[4];
-	out->a = (p4->y + p3->y + p2->y + p1->y) / 4;
-	temp[1] = (p4->y + p3->y - p2->y - p1->y) / 4;
-	temp[2] = (p4->y - p3->y + p2->y - p1->y) / 4;
-	temp[3] = (p4->y - p3->y - p2->y + p1->y) / 4;
+			float avgPr = (p1->pr + p2->pr + p3->pr + p4->pr) / 4;
+			unsigned tPr = Arith_index_of_chroma(avgPr);
+			
+			float avgPb = (p1->pb + p2->pb + p3->pb + p4->pb) / 4;
+			unsigned tPb = Arith_index_of_chroma(avgPb);
+
+			// scale a into unsigned 9 bit representation
+			//printf("a: %f\n", *abcd);
+			uint64_t a = (uint64_t) (*abcd * 1023);
+			// truncate floats using round
+			int64_t b = round (*(abcd + 1) * 10);
+			int64_t c = round (*(abcd + 2) * 10);
+			int64_t d = round (*(abcd + 3) * 10);
+
+			*(words + i) = (Word){a, b, c, d, tPb, tPr};
+			i++;
+		}
+	}
+	//TODO FREE THE OLD ARRAY
+	img->pixels = words;
+}
+
+
+float* DCT(ComponentPix* p1, ComponentPix* p2, ComponentPix* p3, ComponentPix* p4){
+
+	float* temp = malloc(sizeof(float) * 4);
+	*(temp) = (p4->y + p3->y + p2->y + p1->y) / 4;
+	*(temp+1) = (p4->y + p3->y - p2->y - p1->y) / 4;
+	*(temp+2) = (p4->y - p3->y + p2->y - p1->y) / 4;
+	*(temp+3) = (p4->y - p3->y - p2->y + p1->y) / 4;
 
 	for (int i = 1; i < 4; i++){
-		if( temp[i] > 0.3)temp[i] = (float)0.3;
-		else if( temp[i] < -0.3)temp[i] = (float)-0.3;
+		if( *(temp+i) > 0.3)*(temp+i) = (float)0.3;
+		else if( *(temp+i) < -0.3)*(temp+i) = (float)-0.3;
 	}
 
-	out->b = temp[1];
-	out->c = temp[2];
-	out->d = temp[3];
-	return out;
+	return temp;
 }
 
-void* inverseDCT(float* a, float* b, float* c, float* d){
+// img->pixels must be a arrays of word structs
+// after function returns img->pixels will be array of ComponentPix structs
+void applyIDCT(Pnm_ppm* img){
+	Word* cWord = img->pixels;
+	ComponentPix* cComp = malloc(sizeof(ComponentPix) * img->width * img->height);
+
+	int i = 0;
+	for (int r = 0; r < img->height; r += 2){
+		for (int c = 0; c < img->width; c += 2){
+		
+			float* lums = (float *)inverseDCT((cWord +i));
+			// {y, pb, pr}
+			// p1	p2
+			// p3	p4
+			float tPb = Arith_chroma_of_index((cWord+i)->pb);
+			float tPr = Arith_chroma_of_index((cWord+i)->pr);
+		
+			*(cComp + r * img->width + c) = (ComponentPix){*lums, tPb, tPr}; // p1
+			*(cComp + r * img->width + c + 1) = (ComponentPix){*(lums+1), tPb, tPr}; // p2
+			*(cComp + (r+1) * img->width + c) = (ComponentPix){*(lums+2), tPb, tPr}; // p3
+			*(cComp + (r+1) * img->width + c + 1) = (ComponentPix){*(lums+3), tPb, tPr}; // p4
+			free(lums);
+			i++;
+		}
+	}
+
+	free(img->pixels);
+	img->pixels = cComp;
+}
+
+void* inverseDCT(Word* in){
 
 	float* out = malloc(sizeof(float)*4);
-	out[0] = *a - *b - *c + *d;
-	out[1] = *a - *b + *c - *d;
-	out[2] = *a + *b - *c - *d;
-	out[3] = *a + *b + *c + *d;
+	
+	float a = ((float)in->a) / 1023; 
+	float b = ((float)in->b) / 10;
+	float c = ((float)in->c) / 10;
+	float d = ((float)in->d) / 10;
 
+	*out = a - b - c + d;
+	*(out+1) = a - b + c - d;
+	*(out+2) = a + b - c - d;
+	*(out+3) = a + b + c + d;
 	return out;
 }
 

@@ -1,6 +1,8 @@
 #ifndef STRUCTURES_INCLUDED
 #define STRUCTURES_INCLUDED
 
+#include <stdint.h>
+
 typedef struct rgbPix {
 	float r;
 	float g;
@@ -9,8 +11,8 @@ typedef struct rgbPix {
 
 typedef struct componentPix {
 	float y;
- 	float pr;
-	float pb;
+ 	float pb;
+	float pr;
 }ComponentPix;
 
 typedef struct pnm_ppm {
@@ -20,12 +22,14 @@ typedef struct pnm_ppm {
 	void* pixels;
 }Pnm_ppm;
 
-typedef struct coeff {
-	float a;
-	float b;
-	float c;
-	float d;
-}Coeff;
+typedef struct word {
+	uint64_t a;
+	int64_t b;
+	int64_t c;
+	int64_t d;
+	unsigned pb;
+	unsigned pr;
+}Word;
 
 
 

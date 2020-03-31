@@ -2,15 +2,16 @@
 #define OPERATIONS_INCLUDED
 
 #include "structures.h" 
+#include "arith411.h"
 
-//void RGBToComponent(Pnm_ppm* img);
+void convertFloat(Pnm_ppm* img);
 
-//void ComponentToRGB(Pnm_ppm* img);
+void RGBToComponent(Pnm_ppm* img);
 
-//void* DCT(float* y1, float* y2, float* y3, float* y4);
+void ComponentToRGB(Pnm_ppm* img);
 
-//void* inverseDCT(float* a, float* b, float* c, float* d);
+void applyDCT(Pnm_ppm* img);
 
-
+void applyIDCT(Pnm_ppm* img);
 
 #endif
