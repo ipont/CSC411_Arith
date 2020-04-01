@@ -5,10 +5,10 @@
 static inline uint64_t readWord(FILE* f){
 
 	uint64_t bWord = 0;
-	bWord = Bitpack_newu (bWord, 8, 24, getc(f));
-	bWord = Bitpack_newu (bWord, 8, 16, getc(f));
-	bWord = Bitpack_newu (bWord, 8, 8, getc(f));
-	bWord = Bitpack_newu (bWord, 8, 0, getc(f));
+	bWord = Bitpack_newu (bWord, 8, 24, (uint64_t)getc(f));
+	bWord = Bitpack_newu (bWord, 8, 16, (uint64_t)getc(f));
+	bWord = Bitpack_newu (bWord, 8, 8, (uint64_t)getc(f));
+	bWord = Bitpack_newu (bWord, 8, 0, (uint64_t)getc(f));
 	
 	return bWord;
 }
@@ -21,10 +21,24 @@ static inline Word makeWord(uint64_t bWord){
 	int64_t d = Bitpack_gets(bWord, 5, 8);
 	unsigned pb = Bitpack_getu(bWord, 4, 4);
 	unsigned pr = Bitpack_getu(bWord, 4, 0);
-
 	return  (Word){a, b, c, d, pb, pr};
 }
 
+static inline void writeWord(FILE* f, Word w){
+
+	uint64_t bWord = Bitpack_newu(0, 9, 23, w.a);
+	bWord = Bitpack_news(bWord, 5, 18, w.b);
+	bWord = Bitpack_news(bWord, 5, 13, w.c);
+	bWord = Bitpack_news(bWord, 5, 8, w.d);
+	bWord = Bitpack_newu(bWord, 4, 4, w.pb);
+	bWord = Bitpack_newu(bWord, 4, 0, w.pr);
+
+	putc(Bitpack_getu(bWord, 8, 24), f);
+	putc(Bitpack_getu(bWord, 8, 16), f);
+	putc(Bitpack_getu(bWord, 8, 8), f);
+	putc(Bitpack_getu(bWord, 8, 0), f);
+	return;
+}
 void* readCompressed(FILE* f){
 	
 	unsigned height, width;
@@ -51,8 +65,8 @@ void* readCompressed(FILE* f){
 	Word* cWord = img->pixels;
 
 	for (int i = 0; i < blocks; i ++){
-		uint64_t bWord = readWord(f);
-		*(cWord + i) = makeWord(bWord);
+		uint64_t temp = readWord(f);
+		*(cWord + i) = makeWord(temp);
 	}
 
 	return img;
@@ -92,14 +106,23 @@ Pnm_ppm* readUncompressed(FILE* f){
 	return img;
 }
 
-void writeCompressed(FILE* f, Pnm_ppm* pixmap);
+void writeCompressed(FILE* f, Pnm_ppm* pixmap){
+	
+	fprintf(f, "Compressed image format 2\n%u %u\n", pixmap->width, pixmap->height);
+	
+	Word* cWord = pixmap->pixels;
+
+	for (int i = 0; i < (pixmap->width * pixmap->height) /4; i++){
+		writeWord(f, *(cWord + i));
+	}
+}
 
 
 // writes pnm image to stdout
 void writeUncompressed(FILE* f, Pnm_ppm* pixmap){
-	(void)f;
+
 	// print header
-	(void) fprintf(stdout, "P6\n%d %d\n%d\n", pixmap->width, pixmap->height, pixmap->denominator);
+	(void) fprintf(f, "P6\n%d %d\n%d\n", pixmap->width, pixmap->height, pixmap->denominator);
 	//printf("P6\n");
 	//printf("%d %d\n", pixmap->width, pixmap->height);
 	RgbPix* cPix = pixmap->pixels;
@@ -112,8 +135,7 @@ void writeUncompressed(FILE* f, Pnm_ppm* pixmap){
 		color[0] = r;
 		color[1] = g;
 		color[2] = b;
-		(void)fwrite(color, 1, 3, stdout); 
-		//printf("%d%d%d", r, g, b);
+		(void)fwrite(color, 1, 3, f); 
 	}
 	printf("\n");
 }

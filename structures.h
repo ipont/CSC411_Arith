@@ -27,8 +27,8 @@ typedef struct word {
 	int64_t b;
 	int64_t c;
 	int64_t d;
-	unsigned pb;
-	unsigned pr;
+	uint64_t pb;
+	uint64_t pr;
 }Word;
 
 

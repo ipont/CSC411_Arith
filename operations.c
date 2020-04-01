@@ -7,6 +7,12 @@
 float* DCT(ComponentPix* p1, ComponentPix* p2, ComponentPix* p3, ComponentPix* p4);
 void* inverseDCT(Word* in); 
 
+static inline float floatFix(float n, float min, float max){
+	if (n > max) return max;
+	if (n < min) return min;
+	return n;
+}
+
 void convertFloat(Pnm_ppm* img){
 	RgbPix (*arr) = img->pixels;
 	
@@ -45,15 +51,19 @@ void ComponentToRGB(Pnm_ppm* img){
 	RgbPix* rgbPixs = (RgbPix *)(malloc(sizeof(RgbPix) * img->height * img->width)); 
 	
 	for(int i=0; i < img->height * img->width; i++) {
-		r = pixel->y + 1.402 * pixel->pr;
-		g = pixel->y - 0.344136 * pixel->pb - 0.714136 * pixel->pr;
-		b = pixel->y + 1.772 * pixel->pb;
+		r = (pixel+i)->y + 1.402 * (pixel+i)->pr;
+		g = (pixel+i)->y - (0.344136 * (pixel+1)->pb) - (0.714136 * (pixel+i)->pr);
+		b = (pixel+i)->y + (1.772 * (pixel+i)->pb);
 		
-		RgbPix rPix = {r, g, b};
-		*(rgbPixs + i) = rPix;
-		pixel += 1;
+		r = floatFix(r, 0, 1);
+		g = floatFix(g, 0, 1);
+		b = floatFix(b, 0, 1);
+
+		*(rgbPixs + i) = (RgbPix){r, g, b};
 	}
-	img->pixels = (void *)rgbPixs;
+
+	free(img->pixels);
+	img->pixels = rgbPixs;
 }
 
 // img->pixels must be an array of component pixels
@@ -81,17 +91,17 @@ void applyDCT(Pnm_ppm* img){
 
 			// scale a into unsigned 9 bit representation
 			//printf("a: %f\n", *abcd);
-			uint64_t a = (uint64_t) (*abcd * 1023);
+			uint64_t a = (uint64_t) (*abcd * 511);
 			// truncate floats using round
-			int64_t b = round (*(abcd + 1) * 10);
-			int64_t c = round (*(abcd + 2) * 10);
-			int64_t d = round (*(abcd + 3) * 10);
+			int64_t b = round (*(abcd + 1) * 50);
+			int64_t c = round (*(abcd + 2) * 50);
+			int64_t d = round (*(abcd + 3) * 50);
 
 			*(words + i) = (Word){a, b, c, d, tPb, tPr};
 			i++;
 		}
 	}
-	//TODO FREE THE OLD ARRAY
+	free(img->pixels);
 	img->pixels = words;
 }
 
@@ -128,7 +138,6 @@ void applyIDCT(Pnm_ppm* img){
 			// p3	p4
 			float tPb = Arith_chroma_of_index((cWord+i)->pb);
 			float tPr = Arith_chroma_of_index((cWord+i)->pr);
-		
 			*(cComp + r * img->width + c) = (ComponentPix){*lums, tPb, tPr}; // p1
 			*(cComp + r * img->width + c + 1) = (ComponentPix){*(lums+1), tPb, tPr}; // p2
 			*(cComp + (r+1) * img->width + c) = (ComponentPix){*(lums+2), tPb, tPr}; // p3
@@ -146,15 +155,24 @@ void* inverseDCT(Word* in){
 
 	float* out = malloc(sizeof(float)*4);
 	
-	float a = ((float)in->a) / 1023; 
-	float b = ((float)in->b) / 10;
-	float c = ((float)in->c) / 10;
-	float d = ((float)in->d) / 10;
-
+	float a = ((float)in->a) / 511; 
+	float b = ((float)in->b) / 50;
+	float c = ((float)in->c) / 50;
+	float d = ((float)in->d) / 50;
+	
+	//printf("a: %ld,		b: %ld, 	c: %ld, 	d: %ld, 	pb: %d, 	pr: %d\n", in->a, in->b, in->c, in->d, in->pb, in->pr);
+	//printf("a: %f,		b: %f, 	c: %f, 	d: %f\n", a, b, c, d);
+	
+	
 	*out = a - b - c + d;
 	*(out+1) = a - b + c - d;
 	*(out+2) = a + b - c - d;
 	*(out+3) = a + b + c + d;
+
+	for (int i = 0; i < 4; i++){
+		if (*(out+i) > 1) *(out+i) = 1;
+		if (*(out+i) < 0) *(out+i) = 0;
+	}
 	return out;
 }
 

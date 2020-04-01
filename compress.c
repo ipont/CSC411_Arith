@@ -16,17 +16,7 @@ void compress(FILE *input){
 	convertFloat(img);
 	RGBToComponent(img);
 	applyDCT(img);
-	applyIDCT(img);
-	ComponentToRGB(img);
-	//RgbPix* cPix = img->pixels;
-	//for (int i = 0; i < img->height * img->width; i++){
-	//	int r = (cPix+i)->r * img->denominator;
-	//	int g = (cPix+i)->g * img->denominator;
-	//	int b = (cPix+i)->b * img->denominator;
-	//	printf("%d  %d  %d\n", r, g, b);
-	//}
-	writeUncompressed(input, img);	
-	//
+	writeCompressed(stdout, img);
 	return;
 }
 // reads a compressed image and writes PPM
@@ -34,6 +24,6 @@ void decompress(FILE *input){
 	Pnm_ppm* img = readCompressed(input);
 	applyIDCT(img);
 	ComponentToRGB(img);
-	writeUncompressed(input, img);
+	writeUncompressed(stdout, img);
 	return;
 }
