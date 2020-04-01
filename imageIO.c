@@ -55,13 +55,6 @@ void* readCompressed(FILE* f){
 	img->width = width;
 	img->denominator = 255; 
 
-	// value	Type			width	lsb
-	// a 		Unsigned scaled integer 9 bits 	23
-	// b 		Signed scaled integer 	5 bits 	18
-	// c 		Signed scaled integer 	5 bits 	13
-	// d 		Signed scaled integer 	5 bits 	8
-	// index(PB) 	Unsigned index 		4 bits 	4
-	// index(PR) 	Unsigned index 		4 bits 	0
 	Word* cWord = img->pixels;
 
 	for (int i = 0; i < blocks; i ++){
@@ -73,13 +66,12 @@ void* readCompressed(FILE* f){
 }
 
 Pnm_ppm* readUncompressed(FILE* f){
-	// TODO fuck with the pixel array pointer stuff
 	assert(f != NULL);
 	Pnm_ppm* img = malloc(sizeof(Pnm_ppm));
 	
 	Pnmrdr_T pgmReader = Pnmrdr_new(f);
 	Pnmrdr_mapdata pgmData = Pnmrdr_data(pgmReader);
-	
+
 	img->height = pgmData.height;
 	img->width = pgmData.width;
 	img->denominator = pgmData.denominator;
@@ -103,6 +95,7 @@ Pnm_ppm* readUncompressed(FILE* f){
 			*(((RgbPix *)img->pixels) + r * img->width + c) = buf;
 		}
 	}
+	Pnmrdr_free(&pgmReader);
 	return img;
 }
 

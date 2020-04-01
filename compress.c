@@ -17,6 +17,8 @@ void compress(FILE *input){
 	RGBToComponent(img);
 	applyDCT(img);
 	writeCompressed(stdout, img);
+	free(img->pixels);
+	free(img);
 	return;
 }
 // reads a compressed image and writes PPM
@@ -25,5 +27,7 @@ void decompress(FILE *input){
 	applyIDCT(img);
 	ComponentToRGB(img);
 	writeUncompressed(stdout, img);
+	free(img->pixels);
+	free(img);
 	return;
 }

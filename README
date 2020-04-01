@@ -1,0 +1,44 @@
+Isaac Pontarelli
+CSC 411 Arith
+
+Partner:
+--------
+I worked alone on this project
+
+Acknowledgements:
+-----------------
+
+https://stackoverflow.com/
+https://www.google.com/
+
+Chris Paterno kindly pointed out to me that the curruption in my image was caused by
+floating point numbers exceeding their max or min values.
+
+
+Implementation:
+---------------
+
+To my knowledge everything is working correctly. Gradescope refuses to compile
+the image program however everything works fine on the hw server. I am going to
+assume this is an issue with the auto grader and pray I am correct in this assumtion.
+
+
+Architecture:
+-------------
+
+I followed my design document pretty closely so please refer to DESIGN for more details.
+One exception to this was to add a structures.h file to define all the shared data
+structures for my project.
+
+My code is kind of garbage though, this whole online classes thing has thrown my already
+dubious time management skills for a loop. I would have cleaned everything up and added
+more comments if I had more time. 
+
+
+Time:
+-----
+
+I would say I spent at least 30 hours on this project.
+
+
+

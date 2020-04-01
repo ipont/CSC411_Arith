@@ -40,6 +40,7 @@ void RGBToComponent(Pnm_ppm* img){
 		*(cPixs + i) = cPix;
 		pixel += 1;
 	}
+	free(img->pixels);
 	img->pixels = (void *)cPixs;
 }
 
@@ -99,6 +100,7 @@ void applyDCT(Pnm_ppm* img){
 
 			*(words + i) = (Word){a, b, c, d, tPb, tPr};
 			i++;
+			free(abcd);
 		}
 	}
 	free(img->pixels);
